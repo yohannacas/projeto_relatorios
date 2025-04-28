@@ -27,6 +27,7 @@ SENHA_APP = os.getenv("SENHA_APP")
 SENHA_ADVOGADO = os.getenv("SENHA_ADVOGADO", "123cas#@!adv")
 
 # ========= FUNÇÕES =========
+
 def inicializar_banco():
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
@@ -71,6 +72,18 @@ def carregar_processos_pendentes():
         SELECT id, nome_cliente, email, numero_processo, tipo, conferencia, data_envio, caminho_arquivo 
         FROM processos 
         WHERE status = 'pendente' 
+        ORDER BY data_envio DESC
+    """
+    df = pd.read_sql_query(query, conn)
+    conn.close()
+    return df
+
+def carregar_processos_finalizados():
+    conn = sqlite3.connect(DB_PATH)
+    query = """
+        SELECT nome_cliente, email, numero_processo, data_envio, caminho_arquivo 
+        FROM processos 
+        WHERE status = 'finalizado'
         ORDER BY data_envio DESC
     """
     df = pd.read_sql_query(query, conn)
@@ -150,7 +163,6 @@ def exibir_logo_e_titulo_lado_a_lado():
             '<h3>Área do Cliente</h3>'
             '</div>'
         )
-
         st.markdown(html, unsafe_allow_html=True)
 
 # ========= APP =========
@@ -233,6 +245,28 @@ elif pagina == "Área Jusreport":
                 finalizar_processo(row['id'], caminho_relatorio, row['email'], row['numero_processo'])
                 st.success(f"Relatório enviado para {row['nome_cliente']} com sucesso!")
                 st.rerun()
+
+    st.subheader("Relatórios Finalizados")
+    df_finalizados = carregar_processos_finalizados()
+
+    if not df_finalizados.empty:
+        for i, row in df_finalizados.iterrows():
+            st.markdown("---")
+            st.markdown(f"**Cliente:** {row['nome_cliente']}")
+            st.markdown(f"**E-mail:** {row['email']}")
+            st.markdown(f"**Número do processo:** {row['numero_processo']}")
+            st.markdown(f"**Data de envio:** {row['data_envio'][:19].replace('T', ' ')}")
+
+            with open(row["caminho_arquivo"], "rb") as file:
+                st.download_button(
+                    label="Baixar Relatório Finalizado",
+                    data=file,
+                    file_name=os.path.basename(row["caminho_arquivo"]),
+                    mime="application/octet-stream",
+                    key=f"download_finalizado_{i}"
+                )
+    else:
+        st.info("Nenhum relatório finalizado encontrado ainda.")
 
     st.subheader("Relatório Mensal de Processos por Cliente")
     df_contagem = carregar_contagem_processos_mensal()
