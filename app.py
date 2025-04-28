@@ -99,21 +99,21 @@ def excluir_processo(processo_id, caminho_arquivo):
     if os.path.exists(caminho_arquivo):
         os.remove(caminho_arquivo)
 
-def finalizar_processo(processo_id, relatorio_path, email_cliente):
+def finalizar_processo(processo_id, relatorio_path, email_cliente, numero_processo):
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     cursor.execute("UPDATE processos SET status = 'finalizado' WHERE id = ?", (processo_id,))
     conn.commit()
     conn.close()
 
-    enviar_email_cliente(email_cliente, relatorio_path)
+    enviar_email_cliente(email_cliente, relatorio_path, numero_processo)
 
-def enviar_email_cliente(destinatario, relatorio_path):
+def enviar_email_cliente(destinatario, relatorio_path, numero_processo):
     assunto = "Seu Relatório JUSREPORT está pronto!"
-    corpo = """
+    corpo = f"""
     Prezado cliente,
 
-    Segue em anexo o relatório solicitado.
+    Segue em anexo o relatório do processo número {numero_processo}.
 
     Atenciosamente,
     Equipe JUSREPORT
@@ -230,7 +230,7 @@ elif pagina == "Área Jusreport":
                 with open(caminho_relatorio, "wb") as f:
                     f.write(uploaded_relatorio.read())
 
-                finalizar_processo(row['id'], caminho_relatorio, row['email'])
+                finalizar_processo(row['id'], caminho_relatorio, row['email'], row['numero_processo'])
                 st.success(f"Relatório enviado para {row['nome_cliente']} com sucesso!")
                 st.rerun()
 
