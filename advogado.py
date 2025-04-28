@@ -8,7 +8,7 @@ from email.message import EmailMessage
 from dotenv import load_dotenv
 
 # ========= CONFIGURAÇÕES =========
-SENHA_CORRETA = "jus123"
+SENHA_CORRETA = "123cas#@!adv"
 DB_PATH = "banco_dados.db"
 
 # ========= AJUSTES PARA FUNCIONAR NO STREAMLIT CLOUD =========
