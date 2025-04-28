@@ -254,21 +254,19 @@ elif pagina == "Área Jusreport":
     if df_finalizados.empty:
         st.info("Nenhum relatório finalizado encontrado ainda.")
     else:
-        for i, row in df_finalizados.iterrows():
-            st.markdown("---")
-            st.markdown(f"**Cliente:** {row['nome_cliente']}")
-            st.markdown(f"**E-mail:** {row['email']}")
-            st.markdown(f"**Número do processo:** {row['numero_processo']}")
-            st.markdown(f"**Data de envio:** {row['data_envio'][:19].replace('T', ' ')}")
+        df_finalizados["data_envio"] = pd.to_datetime(df_finalizados["data_envio"]).dt.strftime("%d/%m/%Y %H:%M")
+        st.dataframe(df_finalizados.drop(columns=["caminho_arquivo"]))
 
-            with open(row["caminho_arquivo"], "rb") as file:
-                st.download_button(
-                    label="Baixar Relatório Finalizado",
-                    data=file,
-                    file_name=os.path.basename(row["caminho_arquivo"]),
-                    mime="application/octet-stream",
-                    key=f"download_finalizado_{i}"
-                )
+        output_finalizados = BytesIO()
+        with pd.ExcelWriter(output_finalizados, engine='xlsxwriter') as writer:
+            df_finalizados.drop(columns=["caminho_arquivo"]).to_excel(writer, index=False, sheet_name='RelatoriosFinalizados')
+
+        st.download_button(
+            label="Baixar Relatórios Finalizados (Excel)",
+            data=output_finalizados.getvalue(),
+            file_name="relatorios_finalizados.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
 
     # Relatório Mensal
     st.subheader("Relatório Mensal de Processos por Cliente")
