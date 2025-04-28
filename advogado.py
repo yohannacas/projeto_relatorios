@@ -8,7 +8,7 @@ from email.message import EmailMessage
 from dotenv import load_dotenv
 
 # ========= CONFIGURAÇÕES =========
-SENHA_CORRETA = "123cas#@!adv"
+SENHA_CORRETA = "jus123"
 DB_PATH = "banco_dados.db"
 
 # ========= AJUSTES INICIAIS =========
