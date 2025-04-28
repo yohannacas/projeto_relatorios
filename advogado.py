@@ -11,29 +11,32 @@ from dotenv import load_dotenv
 SENHA_CORRETA = "123cas#@!adv"
 DB_PATH = "banco_dados.db"
 
-# ========= AJUSTES PARA FUNCIONAR NO STREAMLIT CLOUD =========
+# ========= AJUSTES INICIAIS =========
 # Criar pastas se não existirem
 os.makedirs("uploads", exist_ok=True)
 os.makedirs("relatorios", exist_ok=True)
 
 # Criar banco e tabela se não existirem
-conn = sqlite3.connect(DB_PATH)
-cursor = conn.cursor()
-cursor.execute("""
-    CREATE TABLE IF NOT EXISTS processos (
-        id TEXT PRIMARY KEY,
-        nome_cliente TEXT,
-        email TEXT,
-        numero_processo TEXT,
-        tipo TEXT,
-        caminho_arquivo TEXT,
-        data_envio TEXT,
-        status TEXT,
-        conferencia TEXT
-    )
-""")
-conn.commit()
-conn.close()
+def inicializar_banco():
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS processos (
+            id TEXT PRIMARY KEY,
+            nome_cliente TEXT,
+            email TEXT,
+            numero_processo TEXT,
+            tipo TEXT,
+            caminho_arquivo TEXT,
+            data_envio TEXT,
+            status TEXT,
+            conferencia TEXT
+        )
+    """)
+    conn.commit()
+    conn.close()
+
+inicializar_banco()
 
 # ========= CARREGAR VARIÁVEIS SECRETAS (.env) =========
 load_dotenv()
@@ -52,31 +55,16 @@ if senha != SENHA_CORRETA:
 # ========= FUNÇÕES =========
 def carregar_processos_pendentes():
     conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-
-    # Proteção extra: criar a tabela processos caso ainda não exista
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS processos (
-            id TEXT PRIMARY KEY,
-            nome_cliente TEXT,
-            email TEXT,
-            numero_processo TEXT,
-            tipo TEXT,
-            caminho_arquivo TEXT,
-            data_envio TEXT,
-            status TEXT,
-            conferencia TEXT
-        )
-    """)
-    conn.commit()
-
     query = """
         SELECT id, nome_cliente, email, numero_processo, tipo, conferencia, data_envio, caminho_arquivo 
         FROM processos 
         WHERE status = 'pendente' 
         ORDER BY data_envio DESC
     """
-    df = pd.read_sql_query(query, conn)
+    try:
+        df = pd.read_sql_query(query, conn)
+    except Exception:
+        df = pd.DataFrame()  # Se der erro (tipo não ter tabela), retorna DataFrame vazio
     conn.close()
     return df
 
@@ -116,7 +104,6 @@ def enviar_email_cliente(destinatario, relatorio_path):
     msg["To"] = destinatario
     msg.set_content(corpo)
 
-    # Anexar o relatório
     with open(relatorio_path, "rb") as f:
         file_data = f.read()
         file_name = os.path.basename(relatorio_path)
