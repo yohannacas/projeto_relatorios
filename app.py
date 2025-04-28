@@ -9,6 +9,7 @@ from dotenv import load_dotenv
 import base64
 from datetime import datetime
 import uuid
+from io import BytesIO
 
 # ========= CONFIGURAÇÕES =========
 DB_PATH = "banco_dados.db"
@@ -71,6 +72,18 @@ def carregar_processos_pendentes():
         FROM processos 
         WHERE status = 'pendente' 
         ORDER BY data_envio DESC
+    """
+    df = pd.read_sql_query(query, conn)
+    conn.close()
+    return df
+
+def carregar_contagem_processos_mensal():
+    conn = sqlite3.connect(DB_PATH)
+    query = """
+        SELECT nome_cliente, email, strftime('%m/%Y', data_envio) as mes_ano, COUNT(*) as quantidade
+        FROM processos
+        GROUP BY nome_cliente, email, mes_ano
+        ORDER BY mes_ano DESC
     """
     df = pd.read_sql_query(query, conn)
     conn.close()
@@ -220,3 +233,19 @@ elif pagina == "Área Jusreport":
                 finalizar_processo(row['id'], caminho_relatorio, row['email'])
                 st.success(f"Relatório enviado para {row['nome_cliente']} com sucesso!")
                 st.rerun()
+
+    st.subheader("Relatório Mensal de Processos por Cliente")
+    df_contagem = carregar_contagem_processos_mensal()
+    if not df_contagem.empty:
+        st.dataframe(df_contagem)
+        output = BytesIO()
+        with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+            df_contagem.to_excel(writer, index=False, sheet_name='RelatorioMensal')
+        st.download_button(
+            label="Baixar Relatório em Excel",
+            data=output.getvalue(),
+            file_name="relatorio_mensal_processos.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+    else:
+        st.info("Nenhum processo enviado ainda para gerar o relatório.")
