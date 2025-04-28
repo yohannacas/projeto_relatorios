@@ -7,17 +7,25 @@ import ssl
 from email.message import EmailMessage
 from dotenv import load_dotenv
 import base64
+from datetime import datetime
+import uuid
 
 # ========= CONFIGURAÇÕES =========
 DB_PATH = "banco_dados.db"
-SENHA_ADVOGADO = "123cas#@!adv"
+UPLOADS_DIR = "uploads"
+RELATORIOS_DIR = "relatorios"
 
 # ========= AJUSTES INICIAIS =========
-# Criar pastas se não existirem
-os.makedirs("uploads", exist_ok=True)
-os.makedirs("relatorios", exist_ok=True)
+os.makedirs(UPLOADS_DIR, exist_ok=True)
+os.makedirs(RELATORIOS_DIR, exist_ok=True)
 
-# Criar banco e tabela se não existirem
+# ========= CARREGAR VARIÁVEIS SECRETAS =========
+load_dotenv()
+EMAIL_REMETENTE = os.getenv("EMAIL_REMETENTE")
+SENHA_APP = os.getenv("SENHA_APP")
+SENHA_ADVOGADO = os.getenv("SENHA_ADVOGADO", "123cas#@!adv")
+
+# ========= FUNÇÕES =========
 def inicializar_banco():
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
@@ -37,21 +45,10 @@ def inicializar_banco():
     conn.commit()
     conn.close()
 
-inicializar_banco()
-
-# ========= CARREGAR VARIÁVEIS SECRETAS =========
-load_dotenv()
-EMAIL_REMETENTE = os.getenv("EMAIL_REMETENTE")
-SENHA_APP = os.getenv("SENHA_APP")
-
-# ========= FUNÇÕES =========
 def salvar_processo(nome_cliente, email, numero, tipo, arquivo, conferencia):
-    from datetime import datetime
-    import uuid
-
     processo_id = str(uuid.uuid4())
-    extensao = arquivo.name.split(".")[-1]
-    caminho_arquivo = f"uploads/{processo_id}.{extensao}"
+    extensao = os.path.splitext(arquivo.name)[1]
+    caminho_arquivo = f"{UPLOADS_DIR}/{processo_id}{extensao}"
 
     with open(caminho_arquivo, "wb") as f:
         f.write(arquivo.read())
@@ -69,33 +66,14 @@ def salvar_processo(nome_cliente, email, numero, tipo, arquivo, conferencia):
 
 def carregar_processos_pendentes():
     conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS processos (
-            id TEXT PRIMARY KEY,
-            nome_cliente TEXT,
-            email TEXT,
-            numero_processo TEXT,
-            tipo TEXT,
-            caminho_arquivo TEXT,
-            data_envio TEXT,
-            status TEXT,
-            conferencia TEXT
-        )
-    """)
-    conn.commit()
-
-    cursor.execute("""
+    query = """
         SELECT id, nome_cliente, email, numero_processo, tipo, conferencia, data_envio, caminho_arquivo 
         FROM processos 
         WHERE status = 'pendente' 
         ORDER BY data_envio DESC
-    """)
-    dados = cursor.fetchall()
-    colunas = [desc[0] for desc in cursor.description]
+    """
+    df = pd.read_sql_query(query, conn)
     conn.close()
-
-    df = pd.DataFrame(dados, columns=colunas)
     return df
 
 def excluir_processo(processo_id, caminho_arquivo):
@@ -127,7 +105,6 @@ def enviar_email_cliente(destinatario, relatorio_path):
     Atenciosamente,
     Equipe JUSREPORT
     """
-
     msg = EmailMessage()
     msg["Subject"] = assunto
     msg["From"] = EMAIL_REMETENTE
@@ -147,27 +124,30 @@ def enviar_email_cliente(destinatario, relatorio_path):
 
 def exibir_logo_e_titulo_lado_a_lado():
     logo_path = "logo.png"
-    with open(logo_path, "rb") as image_file:
-        encoded = base64.b64encode(image_file.read()).decode()
+    if os.path.exists(logo_path):
+        with open(logo_path, "rb") as image_file:
+            encoded = base64.b64encode(image_file.read()).decode()
 
-    st.markdown(
-        f"""
-        <div style="display: flex; align-items: center; margin-top: 30px;">
-            <img src="data:image/png;base64,{encoded}" style="width: 65px; margin-right: 30px;" />
-            <h1 style="margin: 0; font-size: 40px;">JUSREPORT</h1>
-        </div>
-        <div style="margin-top: 20px;">
-            <h3>📄 Envio de Processo para Relatório</h3>
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
+        html = (
+            '<div style="display: flex; align-items: center; margin-top: 30px;">'
+            f'<img src="data:image/png;base64,{encoded}" style="width: 65px; margin-right: 30px;" />'
+            '<h1 style="margin: 0; font-size: 40px;">JUSREPORT</h1>'
+            '</div>'
+            '<div style="margin-top: 20px;">'
+            '<h3>Área do Cliente</h3>'
+            '</div>'
+        )
 
-# ========= INTERFACE =========
+        st.markdown(html, unsafe_allow_html=True)
+
+# ========= APP =========
+
+inicializar_banco()
+
 st.sidebar.title("Navegação")
-pagina = st.sidebar.selectbox("Escolha a página", ["Enviar Processo", "Área dos Advogados"])
+pagina = st.sidebar.selectbox("Escolha a página", ["Área do Cliente", "Área Jusreport"])
 
-if pagina == "Enviar Processo":
+if pagina == "Área do Cliente":
     exibir_logo_e_titulo_lado_a_lado()
 
     with st.form("formulario_processo"):
@@ -178,17 +158,17 @@ if pagina == "Enviar Processo":
         conferencia = st.radio("Tipo de relatório desejado:", ["Com conferência", "Sem conferência"])
         arquivo = st.file_uploader("Anexar arquivo do processo (PDF, DOCX)", type=["pdf", "docx"])
 
-        enviado = st.form_submit_button("📤 Enviar processo")
+        enviado = st.form_submit_button("Enviar processo")
 
         if enviado:
             if not (nome_cliente and email and numero and arquivo):
                 st.warning("Por favor, preencha todos os campos obrigatórios.")
             else:
                 salvar_processo(nome_cliente, email, numero, tipo, arquivo, conferencia)
-                st.success("✅ Processo enviado com sucesso!")
+                st.success("Processo enviado com sucesso!")
 
-elif pagina == "Área dos Advogados":
-    st.title("Área Interna - Advogados JUSREPORT")
+elif pagina == "Área Jusreport":
+    st.title("Área Interna - JusReport")
 
     senha = st.text_input("Digite a senha de acesso:", type="password")
 
@@ -196,7 +176,7 @@ elif pagina == "Área dos Advogados":
         st.warning("Acesso restrito. Insira a senha correta para continuar.")
         st.stop()
 
-    st.subheader("📋 Processos Pendentes")
+    st.subheader("Processos Pendentes")
     df = carregar_processos_pendentes()
 
     if df.empty:
@@ -216,7 +196,7 @@ elif pagina == "Área dos Advogados":
             with col1:
                 with open(row["caminho_arquivo"], "rb") as file:
                     st.download_button(
-                        label="📥 Baixar arquivo do cliente",
+                        label="Baixar arquivo do cliente",
                         data=file,
                         file_name=os.path.basename(row["caminho_arquivo"]),
                         mime="application/octet-stream",
@@ -224,16 +204,16 @@ elif pagina == "Área dos Advogados":
                     )
 
             with col2:
-                if st.button("🗑️ Excluir processo", key=f"excluir_{row['id']}"):
+                if st.button("Excluir processo", key=f"excluir_{row['id']}"):
                     excluir_processo(row['id'], row["caminho_arquivo"])
                     st.success(f"Processo de {row['nome_cliente']} excluído.")
                     st.rerun()
 
             st.markdown("**Upload do relatório final:**")
-            uploaded_relatorio = st.file_uploader(f"📤 Enviar relatório final para {row['nome_cliente']}", type=["pdf", "docx"], key=f"upload_{row['id']}")
+            uploaded_relatorio = st.file_uploader(f"Enviar relatório final para {row['nome_cliente']}", type=["pdf", "docx"], key=f"upload_{row['id']}")
 
             if uploaded_relatorio:
-                caminho_relatorio = f"relatorios/{row['id']}_{uploaded_relatorio.name}"
+                caminho_relatorio = f"{RELATORIOS_DIR}/{row['id']}_{uploaded_relatorio.name}"
                 with open(caminho_relatorio, "wb") as f:
                     f.write(uploaded_relatorio.read())
 
