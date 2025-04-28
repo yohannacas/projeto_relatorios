@@ -27,7 +27,6 @@ SENHA_APP = os.getenv("SENHA_APP")
 SENHA_ADVOGADO = os.getenv("SENHA_ADVOGADO", "123cas#@!adv")
 
 # ========= FUNÇÕES =========
-
 def inicializar_banco():
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
