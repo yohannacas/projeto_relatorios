@@ -8,7 +8,7 @@ from email.message import EmailMessage
 from dotenv import load_dotenv
 
 # ========= CONFIGURAÇÕES =========
-SENHA_CORRETA = "123cas#@!adv"
+SENHA_CORRETA = "jus123"
 DB_PATH = "banco_dados.db"
 
 # ========= AJUSTES PARA FUNCIONAR NO STREAMLIT CLOUD =========
@@ -52,6 +52,24 @@ if senha != SENHA_CORRETA:
 # ========= FUNÇÕES =========
 def carregar_processos_pendentes():
     conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+
+    # Proteção extra: criar a tabela processos caso ainda não exista
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS processos (
+            id TEXT PRIMARY KEY,
+            nome_cliente TEXT,
+            email TEXT,
+            numero_processo TEXT,
+            tipo TEXT,
+            caminho_arquivo TEXT,
+            data_envio TEXT,
+            status TEXT,
+            conferencia TEXT
+        )
+    """)
+    conn.commit()
+
     query = """
         SELECT id, nome_cliente, email, numero_processo, tipo, conferencia, data_envio, caminho_arquivo 
         FROM processos 
