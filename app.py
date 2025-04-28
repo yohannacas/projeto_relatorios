@@ -27,6 +27,7 @@ SENHA_APP = os.getenv("SENHA_APP")
 SENHA_ADVOGADO = os.getenv("SENHA_ADVOGADO", "123cas#@!adv")
 
 # ========= FUNÇÕES =========
+
 def inicializar_banco():
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
@@ -200,6 +201,7 @@ elif pagina == "Área Jusreport":
         st.warning("Acesso restrito. Insira a senha correta para continuar.")
         st.stop()
 
+    # Processos Pendentes
     st.subheader("Processos Pendentes")
     df = carregar_processos_pendentes()
 
@@ -245,10 +247,13 @@ elif pagina == "Área Jusreport":
                 st.success(f"Relatório enviado para {row['nome_cliente']} com sucesso!")
                 st.rerun()
 
+    # Relatórios Finalizados
     st.subheader("Relatórios Finalizados")
     df_finalizados = carregar_processos_finalizados()
 
-    if not df_finalizados.empty:
+    if df_finalizados.empty:
+        st.info("Nenhum relatório finalizado encontrado ainda.")
+    else:
         for i, row in df_finalizados.iterrows():
             st.markdown("---")
             st.markdown(f"**Cliente:** {row['nome_cliente']}")
@@ -264,9 +269,8 @@ elif pagina == "Área Jusreport":
                     mime="application/octet-stream",
                     key=f"download_finalizado_{i}"
                 )
-    else:
-        st.info("Nenhum relatório finalizado encontrado ainda.")
 
+    # Relatório Mensal
     st.subheader("Relatório Mensal de Processos por Cliente")
     df_contagem = carregar_contagem_processos_mensal()
     if not df_contagem.empty:
