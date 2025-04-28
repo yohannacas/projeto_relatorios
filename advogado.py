@@ -8,9 +8,34 @@ from email.message import EmailMessage
 from dotenv import load_dotenv
 
 # ========= CONFIGURAÇÕES =========
-SENHA_CORRETA = "jus123"
+SENHA_CORRETA = "123cas#@!adv"
 DB_PATH = "banco_dados.db"
 
+# ========= AJUSTES PARA FUNCIONAR NO STREAMLIT CLOUD =========
+# Criar pastas se não existirem
+os.makedirs("uploads", exist_ok=True)
+os.makedirs("relatorios", exist_ok=True)
+
+# Criar banco e tabela se não existirem
+conn = sqlite3.connect(DB_PATH)
+cursor = conn.cursor()
+cursor.execute("""
+    CREATE TABLE IF NOT EXISTS processos (
+        id TEXT PRIMARY KEY,
+        nome_cliente TEXT,
+        email TEXT,
+        numero_processo TEXT,
+        tipo TEXT,
+        caminho_arquivo TEXT,
+        data_envio TEXT,
+        status TEXT,
+        conferencia TEXT
+    )
+""")
+conn.commit()
+conn.close()
+
+# ========= CARREGAR VARIÁVEIS SECRETAS (.env) =========
 load_dotenv()
 EMAIL_REMETENTE = os.getenv("EMAIL_REMETENTE")
 SENHA_APP = os.getenv("SENHA_APP")
